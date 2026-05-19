@@ -278,24 +278,27 @@ export const SilentWindowsTimelinePanel: React.FC<Props> = ({ data, width, heigh
     });
   }
 
+  // Pick the era with the most overlap into the EDT day. Overlap > noon-test:
+  // a 2-hour-of-data stage era (10:00–12:00 UTC) wouldn't include noon EDT
+  // (16:00 UTC), but it overlaps the day so it's still the right label.
+  const eraForDay = (dayStartUtc: number): EraSegment | undefined => {
+    const dayEnd = dayStartUtc + 24 * HOUR_MS;
+    let best: EraSegment | undefined;
+    let bestOverlap = 0;
+    for (const e of eras) {
+      const ovl = Math.min(e.to, dayEnd) - Math.max(e.from, dayStartUtc);
+      if (ovl > bestOverlap) {
+        bestOverlap = ovl;
+        best = e;
+      }
+    }
+    return best;
+  };
   const eraColorForDay = (dayStartUtc: number): string => {
-    const noon = dayStartUtc + 12 * HOUR_MS;
-    for (const e of eras) {
-      if (noon >= e.from && noon <= e.to) {
-        return colorForVersion(e.version);
-      }
-    }
-    return 'hsl(220 10% 70%)';
+    const e = eraForDay(dayStartUtc);
+    return e ? colorForVersion(e.version) : 'hsl(220 10% 70%)';
   };
-  const eraLabelForDay = (dayStartUtc: number): string => {
-    const noon = dayStartUtc + 12 * HOUR_MS;
-    for (const e of eras) {
-      if (noon >= e.from && noon <= e.to) {
-        return e.version;
-      }
-    }
-    return '';
-  };
+  const eraLabelForDay = (dayStartUtc: number): string => eraForDay(dayStartUtc)?.version ?? '';
 
   return (
     <div style={{ width, height, overflow: 'auto', color: 'currentColor', fontFamily: 'inherit' }}>
